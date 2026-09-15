@@ -13,6 +13,25 @@ library("DeliveryMan")
 # Read documentation
 # ?runDeliveryMan
 # ?testDM
+frontier <- data.frame(
+  x = integer(), # x-cord
+  y = integer(), # y-cord
+  cost = numeric(), # cost so far
+  estimated_cost = numeric() # estimated cost to goal
+)
+
+insertFrontier <- function(frontier, new_x, new_y, new_cost, new_estimated_cost) {
+  new_entry <- data.frame(
+    x = new_x,
+    y = new_y,
+    cost = new_cost,
+    estimated_cost = new_estimated_cost
+  )
+
+  frontier <- rbind(frontier, new_entry)
+  return(frontier)
+
+}
 
 myFunction <- function(trafficMatrix, carInfo, packageMatrix) {
   # What is our goal?
