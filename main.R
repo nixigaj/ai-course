@@ -235,7 +235,7 @@ findBestPackageOrder <- function(carInfo, packageMatrix) {
 
   permutations <- generatePermutations(availablePackages)
 
-  bestCost <- inf
+  bestCost <- Inf
   bestOrder <- NULL
 
   for (i in 1:nrow(permutations)) {
