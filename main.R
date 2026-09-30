@@ -40,6 +40,7 @@ aStarSearch <- function(startX, startY, goalX, goalY, trafficMatrix, gridDim) {
   
   # Main search loop
   while(length(frontier) > 0) {
+
     # Find node with minimum f-value
     if(length(frontier) == 0) break
     
