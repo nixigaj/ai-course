@@ -1,3 +1,19 @@
+# File:         demo.r
+# Description:  Naive demo-solution given at classroom session
+#               for Project 1, Artificial Intelligence 2019, UU
+# Author:       Fredrik Nilsson
+# Modified by:  Marcello Vendruscolo (2021)
+
+# Install the package
+# install.packages("DeliveryMan_1.1.0.tar.gz", repos = NULL, type="source")
+
+# Load the library
+library("DeliveryMan")
+
+# Read documentation
+# ?runDeliveryMan
+# ?testDM
+
 manhattanDistance <- function(x1, y1, x2, y2){
   return(abs(x1 - x2) + abs(y1 - y2))
 }
