@@ -1,24 +1,3 @@
-
-frontier <- data.frame(
-  x = integer(), # x-cord
-  y = integer(), # y-cord
-  cost = numeric(), # cost so far
-  estimated_cost = numeric() # estimated cost to goal
-)
-
-insertFrontier <- function(frontier, new_x, new_y, new_cost, new_estimated_cost) {
-  new_entry <- data.frame(
-    x = new_x,
-    y = new_y,
-    cost = new_cost,
-    estimated_cost = new_estimated_cost
-  )
-
-  frontier <- rbind(frontier, new_entry)
-  return(frontier)
-
-}
-
 manhattanDistance <- function(x1, y1, x2, y2){
   return(abs(x1 - x2) + abs(y1 - y2))
 }
@@ -42,19 +21,17 @@ aStarSearch <- function(startX, startY, goalX, goalY, trafficMatrix, gridDim) {
   while(length(frontier) > 0) {
 
     # Find node with minimum f-value
-    if(length(frontier) == 0) break
-    
     fValues <- sapply(frontier, function(node) node$f)
     currentIndex <- which.min(fValues)
     current <- frontier[[currentIndex]]
-    
+
     # Check if goal reached
     if (current$x == goalX && current$y == goalY){
       return(reconstructPath(parentMatrix, current))
     }
     
     # Mark as expanded
-      expandedMatrix[current$x, current$y] <- TRUE
+    expandedMatrix[current$x, current$y] <- TRUE
     
     # Remove from frontier
     frontier <- frontier[-currentIndex]
@@ -189,9 +166,97 @@ myFunction <- function(trafficMatrix, carInfo, packageMatrix) {
   return(carInfo)
 }
 
-# Find the nearest pickup location for an undelivered package
+# Find the next pickup based on the best package order
 nextPickup <- function(trafficMatrix, carInfo, packageMatrix) {
-  distanceVector = abs(packageMatrix[,1] - carInfo$x) + abs(packageMatrix[,2] - carInfo$y)
-  distanceVector[packageMatrix[,5] != 0] = Inf
-  return(packageMatrix[which.min(distanceVector), c(1,2)])
+  result <- findBestPackageOrder(carInfo, packageMatrix)
+
+  if(is.null(result)) {
+    return(c(carInfo$x, carInfo$y))
+  }
+
+  nextPackage <- result$order[1]
+
+  return(packageMatrix[nextPackage, c(1,2)])
+}
+
+generatePermutations <- function(x) {
+  result <- matrix(x[1], nrow = 1)
+
+  if (length(x) == 1) {
+    return(result)
+  }
+
+  for (i in 2:length(x)) {
+    newResult <- NULL
+
+    for (row in 1:nrow(result)) {
+      current <- result[row, ]
+
+      for (pos in 0:length(current)) {
+        newPermutation <- append(
+          current,
+          x[i],
+          after = pos
+        )
+
+        newResult <- rbind(
+          newResult,
+          newPermutation
+        )
+
+      }
+    }
+    result <- newResult
+  }
+  return(result)
+}
+
+findBestPackageOrder <- function(carInfo, packageMatrix) {
+  availablePackages <- which(packageMatrix[, 5] == 0)
+  if (length(availablePackages) == 0) {
+    return(NULL)
+  }
+
+  permutations <- generatePermutations(availablePackages)
+
+  bestCost <- inf
+  bestOrder <- NULL
+
+  for (i in 1:nrow(permutations)) {
+    order <- permutations[i, ]
+
+    currentX <- carInfo$x
+    currentY <- carInfo$y
+
+    totalCost <- 0
+
+    for (packageId in order) {
+      pickupX <- packageMatrix[packageId, 1]
+      pickupY <- packageMatrix[packageId, 2]
+
+      deliveryX <- packageMatrix[packageId, 3]
+      deliveryY <- packageMatrix[packageId, 4]
+
+      #Cost to Pickup
+      totalCost <- totalCost + manhattanDistance(currentX, currentY, pickupX, pickupY)
+
+      #Cost to Deliver
+      totalCost <- totalCost + manhattanDistance(pickupX, pickupY, deliveryX, deliveryY)
+
+      currentX <- deliveryX
+      currentY <- deliveryY
+    }
+    if ( totalCost < bestCost) {
+      bestCost <- totalCost
+      bestOrder <- order
+    }
+
+  }
+  return(list(
+    cost = bestCost,
+    order = bestOrder
+  ))
+
+
+
 }
