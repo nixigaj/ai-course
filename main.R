@@ -61,7 +61,7 @@ aStarSearch <- function(startX, startY, goalX, goalY, trafficMatrix, gridDim) {
       # Skip if already expanded
       if (expandedMatrix[neighbourX, neighbourY]) next
       
-      moveCost <- getTrafficCost(trafficMatrix, current, neighbour)
+      moveCost <- 1 + getTrafficCost(trafficMatrix, current, neighbour)
       gCostNeighbour <- gCost[current$x, current$y] + moveCost
       
       # Update g_cost if better path found to neighbour
@@ -142,7 +142,7 @@ getTrafficCost <- function(trafficMatrix, from, to){
  } else if (to$x < from$x){ # Moving left
     return (trafficMatrix$hroads[to$x, to$y])   
  } else { # Stay
-    return (1) 
+    return (0) 
  }
 }
 
