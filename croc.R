@@ -30,33 +30,38 @@ get_shortest_path <- function(start, goal, edges) {
 }
   
 myFunction <- function(moveInfo,readings,positions,edges,probs) {
-  moves <- moveInfo$moves 
+  first_turn <- length(moveInfo$moves) == 0
   mem <- moveInfo$mem 
-  
   # Only do this part the first time
-  if(is.null(mem$status) || mem$status == 0) {
+  if(is.null(mem$transition_matrix)) {
     mem$beliefs <- rep(1/40, 40)
     mem$status <- 1
     
     # Create croc's transition matrix
     transition_matrix <- matrix(0, nrow=40, ncol=40)
-    for (i in 1:nrow(transition_matrix)) {
-      connected_edges <-which(edges[, 1] == i | edges[, 2] == i)
-      valid_destinations <- c(
+    for (i in 1:40) {
+      destinations <- c(
         edges[edges[, 1] == i, 2],
         edges[edges[, 2] == i, 1],
         i
       )
-      
-      k <- length(valid_destinations)
-      
-      transition_matrix[i, valid_destinations] <- 1/k
-      mem$transition_matrix <- transition_matrix
+      transition_matrix[i, destinations] <- 1 / length(destinations)
     }
+    mem$transition_matrix <- transition_matrix
+  }
+
+  if (first_turn) {
+    mem$beliefs <- rep(1/40, 40)
+  } else if (is.null(mem$beliefs)) {
+    mem$beliefs <- rep(1/40, 40)
   }
   
   # HMM FORWARD STEP (PREDICTION & UPDATE)
-  prediction <- as.vector(mem$beliefs %*% mem$transition_matrix)
+  prediction <- if (first_turn) {
+    mem$beliefs
+    } else {
+      as.vector(mem$beliefs %*% mem$transition_matrix)
+    }
   
   likelihood <- rep(0, 40)
   for (i in 1:40) {
@@ -80,33 +85,32 @@ myFunction <- function(moveInfo,readings,positions,edges,probs) {
   
   mem$beliefs <- normalized_beliefs
   
-  # INCORPORATE EXTRA EVIDENCE (Backpackers & Searches)
-  
+ 
   croc_location <- NULL
   for (i in 1:2){
     if (!is.na(positions[i]) && positions[i] < 0) {
-        # Tourist got eaten this turn, croc is there
         croc_location <- abs(positions[i])
         break
     }
   }
   
   if (!is.null(croc_location)) {
+        # Tourist got eaten this turn, croc is here
         mem$beliefs <- rep(0,40)
-        mem$beliefs[croc_location] <- 1.0
+        mem$beliefs[croc_location] <- 1
   } else {
-    for (i in 1:2) {
-      if (!is.na(positions[i]) && positions[i] > 0) {
-        # Tourist alive, croc not there
-        mem$beliefs[positions[i]] <- 0.0
-      }
-    }
-    
+    alive_tourists <- positions[1:2][!is.na(positions[1:2]) & 
+                                       positions[1:2] > 0]
+    mem$beliefs[alive_tourists] <- 0
     # Normalize beliefs again
-    mem$beliefs <- mem$beliefs / sum(mem$beliefs)
+    if (sum(mem$beliefs) > 0) {
+      mem$beliefs <- mem$beliefs / sum(mem$beliefs)
+    } else {
+      mem$beliefs <- prediction / sum(prediction)
+    }
   }
   
-  # DECIDE THE NEXT MOVE
+  # Decide the next move
   ranger_pos <- positions[3]
   target <- which.max(mem$beliefs)
   if(length(target) == 0 || is.na(target)) target <-ranger_pos
@@ -114,29 +118,34 @@ myFunction <- function(moveInfo,readings,positions,edges,probs) {
   path <- get_shortest_path(ranger_pos, target, edges)
   
   searched_this_turn <-0
-  
   if (length(path) > 2) {
-    # SCENARIO A: Target is 2 or more steps away.
-    # Take 2 movement steps to sprint toward the target faster!
+    # Target is 2 or more steps away.
+    # Take 2 steps toward the target
     step1 <- path[2]
     step2 <- path[3]
-    moveInfo$moves <- c(as.numeric(step1), as.numeric(step2))
+    if (mem$beliefs[step1] > 0.25) {
+      # Stop at first step if confidence is high
+      moveInfo$moves <- c(step1, 0)
+      searched_this_turn <- step1
+    } else {
+      moveInfo$moves <- c(step1, step2)
+    }
     
   } else if (length(path) == 2) {
-    # SCENARIO B: Target is 1 step away (adjacent).
+    # Target is 1 step away
     # Move to target, then search (0).
     step1 <- path[2]
-    moveInfo$moves <- c(as.numeric(step1), 0)
+    moveInfo$moves <- c(step1, 0)
     searched_this_turn <- step1 
   } else {
-    # SCENARIO C: Ranger is already standing on the target.
-    # Search current location.
+    # Ranger is standing on the target
+    # Search current location
     moveInfo$moves <- c(0, 0)
     searched_this_turn <- ranger_pos
   }
   
-  if (searched_this_turn != 0) {
-    mem$beliefs[searched_this_turn] <- 0.0
+  if (searched_this_turn > 0) {
+    mem$beliefs[searched_this_turn] <- 0
       
     # Normalize beliefs again
     if (sum(mem$beliefs) > 0) {
